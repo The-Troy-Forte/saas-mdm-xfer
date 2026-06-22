@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Healthcare MDM — Enrollment Match+Merge / Claims Match-Only</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f4f6f9;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 1.3rem;
+    color: #1a2a3a;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: #555;
+    margin-bottom: 24px;
+  }
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: #333;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  .diagram-wrapper {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    padding: 32px;
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+
+<h1>Healthcare Person Data MDM</h1>
+<p class="subtitle">Enrollment systems feed Match + Merge &nbsp;|&nbsp; Claims systems feed Match Only (no merge into Golden Record)</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="swatch" style="background:#1565C0"></div> Enrollment Sources (Match + Merge)</div>
+  <div class="legend-item"><div class="swatch" style="background:#6A1B9A"></div> Claims Sources (Match Only)</div>
+  <div class="legend-item"><div class="swatch" style="background:#00695C"></div> MDM Hub</div>
+  <div class="legend-item"><div class="swatch" style="background:#F9A825"></div> Data Stewardship</div>
+  <div class="legend-item"><div class="swatch" style="background:#E65100"></div> Gold Serving Layer</div>
+</div>
+
+<div class="diagram-wrapper">
+<div class="mermaid">
+flowchart TD
+    subgraph ENR["📋 Enrollment Sources — Match + Merge"]
+        E1["Member Portal\nEnrollment"]
+        E2["Group / Employer\nEnrollment"]
+        E3["Medicaid / Medicare\nEnrollment"]
+    end
+
+    subgraph CLM["💊 Claims Sources — Match Only"]
+        C1["Medical\nClaims"]
+        C2["Pharmacy\nClaims"]
+        C3["Dental / Vision\nClaims"]
+    end
+
+    subgraph BRZ["🔵 Bronze Ingestion Layer"]
+        EI["Enrollment\nIngestion Pipeline"]
+        CI["Claims\nIngestion Pipeline"]
+    end
+
+    subgraph MDM["🟢 MDM Hub"]
+        DQ["Data Quality\n& Standardization"]
+        MR["Match Engine\nProbabilistic + Deterministic\nBlocking → Scoring → Thresholding"]
+
+        subgraph MERGE["Match + Merge Zone"]
+            MV["Candidate\nRecord Cluster"]
+            SV["Survivorship\nRules Engine"]
+            GR[("Golden\nRecord")]
+        end
+
+        subgraph MONLY["Match-Only Zone"]
+            XR["Person ID\nCrosswalk Table"]
+        end
+
+        ST["⚠️ Steward Review\nLow-Confidence Pairs"]
+    end
+
+    subgraph GOLD["🟠 Gold Serving Layer — Snowflake"]
+        MP["Master Person\nProfile"]
+        CL["Claims-Linked\nPerson View"]
+        AN["Analytics &\nReporting"]
+    end
+
+    E1 & E2 & E3 --> EI
+    C1 & C2 & C3 --> CI
+
+    EI -->|"Standardized records"| DQ
+    CI -->|"Standardized records"| DQ
+
+    DQ --> MR
+
+    MR -->|"Matched pairs → Merge"| MV
+    MV --> SV
+    SV --> GR
+
+    MR -->|"Matched to Master ID\nNo record merge"| XR
+
+    MR -->|"Below threshold"| ST
+    ST -->|"Confirmed link"| MR
+
+    GR --> MP
+    XR -->|"Linked via Master Person ID"| CL
+    MP --> CL
+    MP & CL --> AN
+
+    classDef enrollment fill:#1565C0,color:#fff,stroke:#0D47A1,rx:6
+    classDef claims fill:#6A1B9A,color:#fff,stroke:#4A148C
+    classDef mdmcore fill:#00695C,color:#fff,stroke:#004D40
+    classDef golden fill:#004D40,color:#fff,stroke:#00251A,shape:cylinder
+    classDef serving fill:#E65100,color:#fff,stroke:#BF360C
+    classDef steward fill:#F9A825,color:#000,stroke:#F57F17
+
+    class E1,E2,E3,EI enrollment
+    class C1,C2,C3,CI claims
+    class DQ,MR,MV,SV,XR mdmcore
+    class GR golden
+    class MP,CL,AN serving
+    class ST steward
+</div>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis', padding: 20 } });
+</script>
+</body>
+</html>
